@@ -1,0 +1,615 @@
+{
+  "info": {
+    "name": "Cine Iplacex",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecuta la colección en orden, empezando por Bienvenida. baseUrl apunta al servidor local. Se crean dos títulos ficticios y una actriz. Al terminar se conserva la película con su reparto para que puedas consultarla. La segunda película se elimina durante la prueba."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "nombrePelicula",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nombreTemporal",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nombreAusente",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idPelicula",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idActor",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "idTemporal",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Bienvenida",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": []
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const sello = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 5);",
+              "pm.collectionVariables.set('nombrePelicula', 'El faro de invierno - ' + sello);",
+              "pm.collectionVariables.set('nombreTemporal', 'Camino al valle - ' + sello);",
+              "pm.collectionVariables.set('nombreAusente', 'Título ausente - ' + sello);",
+              "['idPelicula', 'idActor', 'idTemporal'].forEach(function (clave) { pm.collectionVariables.unset(clave); });"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Mensaje de bienvenida', function () { pm.expect(pm.response.text()).to.eql('Bienvenido al cine Iplacex'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registrar la película",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"{{nombrePelicula}}\",\n  \"géneros\": [\n    \"Drama\"\n  ],\n  \"anioEstreno\": 2022\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "const dato = pm.response.json();",
+              "pm.test('MongoDB asignó un identificador', function () { pm.expect(/^[a-f0-9]{24}$/i.test(dato._id)).to.eql(true); });",
+              "pm.collectionVariables.set('idPelicula', dato._id);",
+              "pm.test('Título guardado', function () { pm.expect(dato.nombre).to.eql(pm.collectionVariables.get('nombrePelicula')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Buscarla en el listado",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/peliculas",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "peliculas"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('El listado contiene la película', function () { pm.expect(dato.some(p => p._id === pm.collectionVariables.get('idPelicula'))).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultar la película",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/{{idPelicula}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "{{idPelicula}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('Se obtuvo el registro solicitado', function () { pm.expect(dato._id).to.eql(pm.collectionVariables.get('idPelicula')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actualizar año y géneros",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/{{idPelicula}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "{{idPelicula}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"{{nombrePelicula}}\",\n  \"géneros\": [\n    \"Drama\",\n    \"Aventura\"\n  ],\n  \"anioEstreno\": 2023\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('Año actualizado', function () { pm.expect(dato.anioEstreno).to.eql(2023); });",
+              "pm.test('Géneros actualizados', function () { pm.expect(dato.géneros).to.eql(['Drama', 'Aventura']); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registrar a la actriz por título de película",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/actor",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "actor"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombrePelicula\": \"{{nombrePelicula}}\",\n  \"nombre\": \"Lía Prado\",\n  \"edad\": 31,\n  \"estaRetirado\": false,\n  \"premios\": [\n    \"Festival del Valle\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "const dato = pm.response.json();",
+              "pm.test('MongoDB asignó un identificador', function () { pm.expect(/^[a-f0-9]{24}$/i.test(dato._id)).to.eql(true); });",
+              "pm.collectionVariables.set('idActor', dato._id);",
+              "pm.test('La actriz quedó asociada por ID', function () { pm.expect(dato.idPelicula).to.eql(pm.collectionVariables.get('idPelicula')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Buscarla en el listado de actores",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/actores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "actores"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('El listado contiene a la actriz', function () { pm.expect(dato.some(a => a._id === pm.collectionVariables.get('idActor'))).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultar la ficha de la actriz",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/actor/{{idActor}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "actor",
+            "{{idActor}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('Se obtuvo la actriz solicitada', function () { pm.expect(dato._id).to.eql(pm.collectionVariables.get('idActor')); });",
+              "pm.test('Premio registrado', function () { pm.expect(dato.premios).to.eql(['Festival del Valle']); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ver el reparto de la película",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/{{idPelicula}}/actores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "{{idPelicula}}",
+            "actores"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('El reparto corresponde a esta película', function () { pm.expect(dato.length === 1 && dato[0]._id === pm.collectionVariables.get('idActor') && dato[0].idPelicula === pm.collectionVariables.get('idPelicula')).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultar el reparto con la ruta corta",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/actor/{{idPelicula}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "actor",
+            "{{idPelicula}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('La ruta corta devuelve el mismo reparto', function () { pm.expect(dato.map(a => a._id)).to.eql([pm.collectionVariables.get('idActor')]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultar un identificador mal formado",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/id-invalido",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "id-invalido"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Intentar asociar una película inexistente",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/actor",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "actor"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombrePelicula\": \"{{nombreAusente}}\",\n  \"nombre\": \"Lía Prado\",\n  \"edad\": 31,\n  \"estaRetirado\": false,\n  \"premios\": [\n    \"Festival del Valle\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Crear otra película para probar la eliminación",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"{{nombreTemporal}}\",\n  \"géneros\": [\n    \"Comedia\"\n  ],\n  \"anioEstreno\": 2024\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "const dato = pm.response.json();",
+              "pm.test('MongoDB asignó un identificador', function () { pm.expect(/^[a-f0-9]{24}$/i.test(dato._id)).to.eql(true); });",
+              "pm.collectionVariables.set('idTemporal', dato._id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ver el reparto vacío",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/{{idTemporal}}/actores",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "{{idTemporal}}",
+            "actores"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "const dato = pm.response.json();",
+              "pm.test('La segunda película todavía tiene el reparto vacío', function () { pm.expect(dato).to.eql([]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Eliminar la película sin reparto",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/{{idTemporal}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "{{idTemporal}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comprobar la eliminación",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/pelicula/{{idTemporal}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pelicula",
+            "{{idTemporal}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
